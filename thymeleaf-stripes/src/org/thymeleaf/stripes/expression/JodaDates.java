@@ -50,6 +50,9 @@ public final class JodaDates {
     /**
      * create methods
      */
+    public DateTime create(final Object year, final Object month) {
+    	return create(year, month, Integer.valueOf(1), Integer.valueOf(0), Integer.valueOf(0), Integer.valueOf(0), Integer.valueOf(0));
+    }
     public DateTime create(final Object year, final Object month, final Object day) {
     	return create(year, month, day, Integer.valueOf(0), Integer.valueOf(0), Integer.valueOf(0), Integer.valueOf(0));
     }

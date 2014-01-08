@@ -14,23 +14,20 @@
  */
 package org.thymeleaf.stripes.util;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 import net.sourceforge.stripes.action.ActionBean;
-import net.sourceforge.stripes.action.DefaultHandler;
 import net.sourceforge.stripes.config.Configuration;
 import net.sourceforge.stripes.controller.ActionResolver;
 import net.sourceforge.stripes.controller.AnnotatedClassActionResolver;
-import net.sourceforge.stripes.controller.StripesFilter;
 import net.sourceforge.stripes.controller.UrlBinding;
 import net.sourceforge.stripes.controller.UrlBindingParameter;
-import net.sourceforge.stripes.exception.StripesRuntimeException;
 import net.sourceforge.stripes.exception.UrlBindingConflictException;
 import net.sourceforge.stripes.format.Formatter;
 import net.sourceforge.stripes.format.FormatterFactory;
@@ -75,28 +72,13 @@ public class UrlBuilder {
         }
     }
 
+    private Configuration configuration;
+    
     private String baseUrl;
     private String anchor;
     private Locale locale;
-    private List<Parameter> parameters = new ArrayList<Parameter>();
-    private String url;
+    private List<Parameter> parameters = new LinkedList<Parameter>();
 
-    /**
-     * Constructs a UrlBuilder with the path to a resource. Parameters can be added
-     * later using addParameter().  If the link is to be used in a page then the ampersand
-     * character usually used to separate parameters will be escaped using the XML entity
-     * for ampersand.
-     *
-     * @param url the path part of the URL
-     * @param isForPage true if the URL is to be embedded in a page (e.g. in an anchor of img
-     *        tag), false if for some other purpose.
-     * @deprecated As of Stripes 1.5, this constructor has been replaced by
-     *             {@link #UrlBuilder(Locale, String, boolean)}.
-     */
-    @Deprecated
-    public UrlBuilder(String url, boolean isForPage) {
-        this(Locale.getDefault(), url, isForPage);
-    }
 
     /**
      * Constructs a UrlBuilder with the path to a resource. Parameters can be added
@@ -106,11 +88,10 @@ public class UrlBuilder {
      *
      * @param locale the locale to use when formatting parameters with a {@link Formatter}
      * @param url the path part of the URL
-     * @param isForPage true if the URL is to be embedded in a page (e.g. in an anchor of img
-     *        tag), false if for some other purpose.
      */
-    public UrlBuilder(Locale locale, String url, boolean isForPage) {
-        this(locale);
+    public UrlBuilder(Configuration config, Locale locale, String url) {
+    	this.configuration = config;
+        this.locale = locale;
         if (url != null) {
             // Check to see if there is an embedded anchor, and strip it out for later
             int index = url.indexOf('#');
@@ -125,38 +106,7 @@ public class UrlBuilder {
         }
     }
 
-    /**
-     * Constructs a UrlBuilder that references an {@link ActionBean}. Parameters can be added later
-     * using addParameter(). If the link is to be used in a page then the ampersand character
-     * usually used to separate parameters will be escaped using the XML entity for ampersand.
-     * 
-     * @param locale the locale to use when formatting parameters with a {@link Formatter}
-     * @param beanType {@link ActionBean} class for which the URL will be built
-     * @param isForPage true if the URL is to be embedded in a page (e.g. in an anchor of img tag),
-     *            false if for some other purpose.
-     */
-    public UrlBuilder(Locale locale, Class<? extends ActionBean> beanType, boolean isForPage) {
-        this(locale);
-        Configuration configuration = StripesFilter.getConfiguration();
-        if (configuration != null) {
-            this.baseUrl = configuration.getActionResolver().getUrlBinding(beanType);
-        }
-        else {
-            throw new StripesRuntimeException("Unable to lookup URL binding for ActionBean class "
-                    + "because there is no Configuration object available.");
-        }
-    }
 
-    /**
-     * Sets the locale and sets the parameter separator based on the value of <code>isForPage</code>.
-     * 
-     * @param locale the locale to use when formatting parameters with a {@link Formatter}
-     * @param isForPage true if the URL is to be embedded in a page (e.g. in an anchor of img tag),
-     *            false if for some other purpose.
-     */
-    protected UrlBuilder(Locale locale) {
-        this.locale = locale;
-    }
 
     /**
      * <p>Appends one or more values of a parameter to the URL. Checks to see if each value is
@@ -187,7 +137,6 @@ public class UrlBuilder {
             }
             else {
                 parameters.add(new Parameter(name, v));
-                url = null;
             }
         }
         
@@ -243,20 +192,11 @@ public class UrlBuilder {
     }
 
     /**
-     * Returns the URL composed thus far as a String.  All paramter values will have been
-     * URL encoded and appended to the URL before returning it.
+     * Debug-oriented toString
      */
     @Override
     public String toString() {
-        if (url == null) {
-            url = build();
-        }
-        if (this.anchor != null && this.anchor.length() > 0) {
-            return url + "#" + this.anchor;
-        }
-        else {
-            return url;
-        }
+    	return "["+baseUrl+";"+parameters.toString()+";"+this.anchor+"]";
     }
 
     /**
@@ -269,8 +209,8 @@ public class UrlBuilder {
      *            the object to be formatted
      * @return the formatted value
      */
-    @SuppressWarnings("unchecked")
-    protected String format(Object value) {
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private String format(Object value) {
         if (value == null) {
             return "";
         }
@@ -291,12 +231,7 @@ public class UrlBuilder {
      * @param value the object to be formatted
      * @return a formatter, if one can be found; null otherwise
      */
-    @SuppressWarnings("unchecked")
-	protected Formatter getFormatter(Object value) {
-        Configuration configuration = StripesFilter.getConfiguration();
-        if (configuration == null)
-            return null;
-
+	private Formatter<?> getFormatter(Object value) {
         FormatterFactory factory = configuration.getFormatterFactory();
         if (factory == null)
             return null;
@@ -312,22 +247,18 @@ public class UrlBuilder {
      * @return a map of ActionBean property names to their validation metadata
      * @see ValidationMetadataProvider#getValidationMetadata(Class)
      */
-    protected Map<String, ValidationMetadata> getValidationMetadata() {
+    private Map<String, ValidationMetadata> getValidationMetadata() {
         Map<String, ValidationMetadata> validations = null;
-        Configuration configuration = StripesFilter.getConfiguration();
-        if (configuration != null) {
-            Class<? extends ActionBean> beanType = null;
-            try {
-                beanType = configuration.getActionResolver().getActionBeanType(this.baseUrl);
-            }
-            catch (UrlBindingConflictException e) {
-                // This can be safely ignored
-            }
+        Class<? extends ActionBean> beanType = null;
+        try {
+            beanType = configuration.getActionResolver().getActionBeanType(this.baseUrl);
+        }
+        catch (UrlBindingConflictException e) {
+            // This can be safely ignored
+        }
 
-            if (beanType != null) {
-                validations = configuration.getValidationMetadataProvider().getValidationMetadata(
-                        beanType);
-            }
+        if (beanType != null) {
+            validations = configuration.getValidationMetadataProvider().getValidationMetadata(beanType);
         }
 
         if (validations == null)
@@ -339,16 +270,12 @@ public class UrlBuilder {
     /**
      * Build and return the URL
      */
-    protected String build() {
-        // special handling for event parameter
-        List<Parameter> parameters = new ArrayList<Parameter>(this.parameters.size() + 1);
-        parameters.addAll(this.parameters);
-
+    public String build() {
         // lookup validation info for the bean class to find encrypted properties
         Map<String, ValidationMetadata> validations = getValidationMetadata();
 
         StringBuilder buffer = new StringBuilder(256);
-        buffer.append(getBaseURL(this.baseUrl, parameters));
+        buffer.append(composeBaseURL(this.baseUrl, parameters));
         boolean seenQuestionMark = buffer.indexOf("?") != -1;
         for (Parameter param : parameters) {
             // Figure out whether we already have params or not
@@ -387,8 +314,8 @@ public class UrlBuilder {
      * @see #UrlBuilder(Locale, Class, boolean)
      * @see #UrlBuilder(Locale, String, boolean)
      */
-    protected String getBaseURL(String baseUrl, Collection<Parameter> parameters) {
-        ActionResolver resolver = StripesFilter.getConfiguration().getActionResolver();
+    private String composeBaseURL(String baseUrl, Collection<Parameter> parameters) {
+        ActionResolver resolver = configuration.getActionResolver();
         if (!(resolver instanceof AnnotatedClassActionResolver))
             return baseUrl;
 

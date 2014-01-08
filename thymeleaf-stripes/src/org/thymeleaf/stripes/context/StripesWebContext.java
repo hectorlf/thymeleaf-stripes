@@ -30,12 +30,12 @@ import javax.servlet.http.HttpServletResponse;
 import net.sourceforge.stripes.action.ActionBean;
 import net.sourceforge.stripes.controller.StripesFilter;
 import net.sourceforge.stripes.util.ReflectUtil;
-import net.sourceforge.stripes.util.UrlBuilder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.context.IWebContext;
 import org.thymeleaf.context.WebContext;
+import org.thymeleaf.stripes.util.UrlBuilder;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -64,10 +64,10 @@ public class StripesWebContext extends WebContext implements IWebContext {
     	String baseUrl = resolveActionBeanUrlBinding(className);
     	if (baseUrl == null) return null;
     	// If found, build the final url
-    	UrlBuilder builder = new UrlBuilder(getLocale(), baseUrl, false);
+    	UrlBuilder builder = new UrlBuilder(stripesConfig, getLocale(), baseUrl);
     	builder.addParameters(parameters);
     	builder.setAnchor(anchor);
-    	String url = builder.toString();
+    	String url = builder.build();
     	// Prepend the context path
         String contextPath = getHttpServletRequest().getContextPath();
         if (!url.startsWith("/")) url = "/" + url;
