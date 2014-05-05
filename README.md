@@ -3,6 +3,8 @@ thymeleaf-stripes
 
 Thymeleaf plugin for Stripes integration
 
+No longer in development.
+
 
 Compile dependencies: 
 javassist-3.16.1-GA.jar |
